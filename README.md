@@ -1,14 +1,27 @@
-# Talent Desk
+# Apex AI
 
-Talent Desk is a Cloudflare Workers HR dashboard for reviewing candidates selected in Ambiguous's `chosen` sheet and managing their hiring state.
+Apex AI is a Cloudflare Workers HR dashboard for reviewing candidates selected in Ambiguous's `chosen` sheet and managing their hiring state.
+
+Copyright: MIT License, Sagnik Das, Prasanna Bhat, Pawan Saxena
+
+## Project description
+
+Apex AI is a lightweight HR decision desk that connects a browser-based candidate dashboard to live Ambiguous Sheets data. It separates chosen candidates from the wider candidate pool, displays candidate profiles and skills, and lets authorized HR users record hiring decisions directly in the `chosen` sheet. Supported actions include sending an offer with a EUR amount, hiring a candidate, rejecting a candidate, and firing a previously hired candidate.
+
+The application is implemented as a server-side Cloudflare Worker with static frontend assets. The Worker keeps the Ambiguous API key out of browser code, reads sheets by title, resolves the correct Ambiguous Sheets resource for updates, and exposes same-origin JSON endpoints for the dashboard. The frontend provides a responsive interface with candidate search, status summaries, refresh controls, validation, and clear error states.
+
+The repository also includes a separate Slack delegation assistant that analyzes fictional Slack conversations, identifies delegatable work, matches suitable employees, and routes human-reviewed suggestions to HR. Mock replay scenarios and automated tests support local development without requiring live credentials.
 
 ## Local development
 
 ```bash
 npm install
-npx wrangler secret put AMBIGUOUS_API_KEY
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars and set AMBIGUOUS_API_KEY to your Ambiguous API key.
 npm run dev
 ```
+
+`wrangler secret put` stores a secret in Cloudflare for deployed/remote Workers; it does not make that secret available to local `wrangler dev`. Keep `.dev.vars` local and never commit it.
 
 Open the local URL printed by Wrangler. The Worker keeps the Ambiguous credential server-side and exposes same-origin API routes for the UI:
 

@@ -51,6 +51,13 @@ async function sheetId(env, title) {
   return found.id;
 }
 
+async function apiSheetId(env, title) {
+  const sheets = await ambi(env, "/sheets");
+  const found = (sheets.data || []).find((sheet) => clean(sheet.title).toLowerCase() === clean(title).toLowerCase());
+  if (!found) throw new Error(`Ambiguous sheet not found: ${title}`);
+  return found.id;
+}
+
 async function readSheet(env, title) {
   const id = await sheetId(env, title);
   const envelope = await ambi(env, `/documents/${id}`);
@@ -77,20 +84,21 @@ function candidateRecord(values) {
 
 async function patchState(env, candidateId, state, offerAmount = "") {
   const sheet = await loadChosen(env);
+  const apiSheetIdValue = await apiSheetId(env, env.CHOSEN_SHEET_TITLE || "chosen");
   const row = sheet.rows.find(({ values }) => values.candidate_id === candidateId);
   if (!row) throw new Error("Chosen candidate not found");
   const stateHeader = sheet.headers.find(({ name }) => name === "state");
   if (!stateHeader) throw new Error("The chosen sheet is missing the state column");
-  const updates = [{ rowIndex: row.rowIndex, columnId: stateHeader.column, value: state }];
+  const updates = [{ cell: `${stateHeader.column}${row.rowIndex + 1}`, value: state }];
   if (state === "offer") {
     let offerHeader = sheet.headers.find(({ name }) => name === "offer_amount");
     if (!offerHeader) {
       offerHeader = { column: columnId(sheet.headers.length), name: "offer_amount" };
-      updates.push({ rowIndex: sheet.headerIndex, columnId: offerHeader.column, value: "offer_amount" });
+      updates.push({ cell: `${offerHeader.column}${sheet.headerIndex + 1}`, value: "offer_amount" });
     }
-    updates.push({ rowIndex: row.rowIndex, columnId: offerHeader.column, value: offerAmount });
+    updates.push({ cell: `${offerHeader.column}${row.rowIndex + 1}`, value: offerAmount });
   }
-  await ambi(env, `/documents/${sheet.id}/cells`, {
+  await ambi(env, `/sheets/${apiSheetIdValue}/cells`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ updates }),
