@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slack-delegation-assistant"
+version = "0.1.0"
+description = "Slack conversation analysis and fictional employee matching"
+requires-python = ">=3.11"
+dependencies = ["slack-bolt>=1.21,<2", "openai>=1.68,<3", "pydantic>=2.8,<3", "python-dotenv>=1,<2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[tool.setuptools.packages.find]
+include = ["delegation_bot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
