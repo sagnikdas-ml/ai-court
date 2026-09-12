@@ -341,4 +341,7 @@ def client_error(error):
 
 if __name__ == "__main__":
     initialise_database()
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    # The Flask reloader installs signal handlers, which are only permitted in
+    # Python's main thread. Keep this legacy API launcher safe for IDEs and
+    # embedded runners; the Streamlit interface is started separately.
+    app.run(debug=False, use_reloader=False, host="127.0.0.1", port=5000)

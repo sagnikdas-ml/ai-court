@@ -8,6 +8,7 @@ import sqlite3
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import tomllib
 from contextlib import closing
@@ -31,6 +32,7 @@ def initialise_database() -> None:
             CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'upcoming', is_complete INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS task_dependencies (task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, depends_on_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, PRIMARY KEY(task_id, depends_on_id));
             CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE IF NOT EXISTS chat_task_suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS candidates (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, programme TEXT NOT NULL, experience TEXT NOT NULL, skills TEXT NOT NULL, availability_hours INTEGER NOT NULL, email TEXT NOT NULL, whatsapp TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS hiring_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE, candidate_id INTEGER NOT NULL REFERENCES candidates(id), requested_by TEXT NOT NULL DEFAULT 'Arjun Shah', status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(task_id, candidate_id));
             CREATE TABLE IF NOT EXISTS outreach_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, hiring_request_id INTEGER NOT NULL REFERENCES hiring_requests(id) ON DELETE CASCADE, channel TEXT NOT NULL, message TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
@@ -118,6 +120,31 @@ def inferred_tasks(description: str) -> list[tuple[str, str]]:
     return suggestions
 
 
+def task_suggestion_from_chat(message: str) -> dict | None:
+    """Turn an actionable chat message into a small, reviewable task proposal."""
+    text = message.strip()
+    if not text:
+        return None
+    direct_match = re.match(r"^(?:add|create)\s+(?:a\s+)?task\s*:\s*(.+)$", text, re.IGNORECASE)
+    if direct_match:
+        title = direct_match.group(1).strip().rstrip(".")
+        return {"title": title[:120], "description": f"Created from the task conversation: {text}", "direct": True}
+
+    normalized = text.lower()
+    suggestions = [
+        (("dataset", "data collection", "collect data"), "Collect and validate dataset", "Gather the required data, check quality, and document provenance."),
+        (("preprocess", "clean data", "annotation", "annotate"), "Preprocess and annotate data", "Prepare a reproducible dataset with documented quality checks."),
+        (("train", "training", "action policy", "model"), "Train the action policy", "Train and validate the agreed model or policy."),
+        (("evaluate", "benchmark", "metrics", "generalization"), "Evaluate and report results", "Define metrics, run the evaluation, and share the findings."),
+        (("ros", "simulator", "mujoco", "isaac"), "Run the system in a simulator", "Integrate the work with the simulator or robot controller and test it safely."),
+        (("candidate", "hiwi", "hire", "student assistant"), "Hire student assistant", "Find a suitable candidate and submit the selected person to HR."),
+    ]
+    for keywords, title, description in suggestions:
+        if any(keyword in normalized for keyword in keywords):
+            return {"title": title, "description": description, "direct": False}
+    return None
+
+
 def ready(task: dict, task_map: dict[int, dict]) -> bool:
     return all(task_map[dependency]["is_complete"] for dependency in task["dependencies"] if dependency in task_map)
 
@@ -189,7 +216,7 @@ if st.session_state.selected_project_id not in {project["id"] for project in ava
 with st.sidebar:
     st.title("Objection")
     st.caption(f"Signed in as **{st.session_state.user['name']}** · {st.session_state.user['role'].upper()}")
-    if st.button("Sign out", icon=":material/logout:", width="stretch"):
+    if st.button("Sign out", icon=":material/logout:", use_container_width=True):
         st.session_state.user = None
         st.rerun()
     st.divider()
@@ -342,17 +369,17 @@ def project_board() -> None:
                         st.caption(f":material/account_tree: Depends on {depends}")
                     action_left, action_right = st.columns(2)
                     with action_left:
-                        st.button("Open", key=f"open_{task['id']}", on_click=select_task, args=(task["id"],), width="stretch")
+                        st.button("Open", key=f"open_{task['id']}", on_click=select_task, args=(task["id"],), use_container_width=True)
                     with action_right:
                         if not task["is_complete"] and task["status"] != "active":
-                            if st.button("Start", key=f"start_{task['id']}", type="primary", icon=":material/play_arrow:", width="stretch"):
+                            if st.button("Start", key=f"start_{task['id']}", type="primary", icon=":material/play_arrow:", use_container_width=True):
                                 if ready(task, task_by_id):
                                     set_task_status(task["id"], "active")
                                     st.rerun()
                                 else:
                                     st.warning("Complete the dependencies before starting this task.")
                         elif task["status"] == "active":
-                            if st.button("Mark complete", key=f"done_{task['id']}", icon=":material/check_circle:", width="stretch"):
+                            if st.button("Mark complete", key=f"done_{task['id']}", icon=":material/check_circle:", use_container_width=True):
                                 set_task_status(task["id"], "done", completed=True)
                                 for candidate in project_tasks:
                                     if candidate["status"] == "blocked" and ready(candidate, task_by_id):
@@ -387,19 +414,59 @@ def task_workspace() -> None:
     with chat_col:
         with st.container(border=True):
             st.subheader("Task conversation")
+            st.caption("Type `add task: prepare the simulation test plan` to add a task now. Other task-like messages become suggestions for you to review.")
             for message in messages(task["id"]):
                 role = "assistant" if message["author"] in {"agent", "hr"} else "user"
                 avatar = ":material/smart_toy:" if message["author"] == "agent" else ":material/person:"
                 with st.chat_message(role, avatar=avatar):
                     st.caption(message["author"].title())
                     st.write(message["body"])
+
+            relevant_suggestions = query_all(
+                "SELECT * FROM chat_task_suggestions WHERE task_id=? ORDER BY id", (task["id"],)
+            )
+            if relevant_suggestions:
+                st.caption("Suggested from this conversation")
+            for suggestion in relevant_suggestions:
+                with st.container(border=True):
+                    st.markdown(f"**{suggestion['title']}**")
+                    st.caption(suggestion["description"])
+                    create_col, dismiss_col = st.columns(2)
+                    if create_col.button("Create task", key=f"create_chat_task_{suggestion['id']}", type="primary", icon=":material/add_task:", use_container_width=True):
+                        execute(
+                            "INSERT INTO tasks(project_id,title,description,status) VALUES(?,?,?,?)",
+                            (project_id, suggestion["title"], suggestion["description"], "upcoming"),
+                        )
+                        execute(
+                            "INSERT INTO messages(task_id,author,body) VALUES(?,?,?)",
+                            (task["id"], "agent", f"I added **{suggestion['title']}** to the project pipeline as ready to start."),
+                        )
+                        execute("DELETE FROM chat_task_suggestions WHERE id=?", (suggestion["id"],))
+                        st.rerun()
+                    if dismiss_col.button("Dismiss", key=f"dismiss_chat_task_{suggestion['id']}", use_container_width=True):
+                        execute("DELETE FROM chat_task_suggestions WHERE id=?", (suggestion["id"],))
+                        st.rerun()
+
             prompt = st.chat_input("Message the team or ask the agent", key=f"chat_{task['id']}")
             if prompt:
                 execute("INSERT INTO messages(task_id,author,body) VALUES(?,?,?)", (task["id"], "phd", prompt))
-                if any(word in prompt.lower() for word in ("candidate", "hiwi", "hire", "assistant")):
+                suggestion = task_suggestion_from_chat(prompt)
+                if suggestion and suggestion["direct"]:
+                    execute(
+                        "INSERT INTO tasks(project_id,title,description,status) VALUES(?,?,?,?)",
+                        (project_id, suggestion["title"], suggestion["description"], "upcoming"),
+                    )
+                    reply = f"I added **{suggestion['title']}** to the project pipeline as ready to start."
+                elif suggestion:
+                    execute(
+                        "INSERT INTO chat_task_suggestions(task_id,title,description) VALUES(?,?,?)",
+                        (task["id"], suggestion["title"], suggestion["description"]),
+                    )
+                    reply = "I found a possible follow-up task. Review the suggestion above and create it only if it fits the project plan."
+                elif any(word in prompt.lower() for word in ("candidate", "hiwi", "hire", "assistant")):
                     reply = "I found suitable candidates below. Choose one to create an HR request."
                 else:
-                    reply = "I noted that. I can help clarify the task, search for candidates, or prepare the HR request."
+                    reply = "I noted that. I can help clarify the task, suggest a follow-up task, search for candidates, or prepare the HR request."
                 execute("INSERT INTO messages(task_id,author,body) VALUES(?,?,?)", (task["id"], "agent", reply))
                 st.rerun()
     with detail_col:
@@ -414,7 +481,7 @@ def task_workspace() -> None:
                     st.markdown(f"**{candidate['name']}**")
                     st.caption(f"{candidate['programme']} · {candidate['experience']}")
                     st.caption(f"{candidate['availability_hours']} h/week · {candidate['skills']}")
-                    if st.button("Ask HR to proceed", key=f"hire_{task['id']}_{candidate['id']}", type="primary", width="stretch"):
+                    if st.button("Ask HR to proceed", key=f"hire_{task['id']}_{candidate['id']}", type="primary", use_container_width=True):
                         try:
                             execute("INSERT INTO hiring_requests(task_id,candidate_id) VALUES(?,?)", (task["id"], candidate["id"]))
                             execute("INSERT INTO messages(task_id,author,body) VALUES(?,?,?)", (task["id"], "agent", f"I sent {candidate['name']} to HR for review and outreach."))
