@@ -420,6 +420,7 @@ def load_candidates():
     response = read_sheet(
         sheet["id"]
     )
+  
 
     return matrix_to_records(
         extract_matrix(
@@ -873,6 +874,43 @@ def process_opportunity(opportunity):
         candidates,
     )
 
+    candidate_matches = [
+    enrich_candidate_match(
+        match,
+        candidates
+    )
+    for match in candidate_matches
+]
+
+    if candidate_matches:
+        final_candidate = candidate_matches[0]
+
+        print("\n")
+        print("=" * 70)
+        print("FINAL CANDIDATE RECOMMENDATION")
+        print("=" * 70)
+
+        print(
+            "Name:",
+            final_candidate.get("name")
+        )
+
+        print(
+            "Match score:",
+            final_candidate.get("match_score")
+        )
+
+        print(
+            "Why:",
+            final_candidate.get(
+                "why_candidate_matches"
+            )
+        )
+
+    # write_final_recommendation_to_chosen(
+    #     final_candidate
+    # )
+
     print("\n")
     print("=" * 70)
     print("CANDIDATE MATCHES")
@@ -1006,6 +1044,110 @@ def process_opportunity(opportunity):
         "candidate_matches": candidate_matches,
     }
 
+
+def enrich_candidate_match(match, candidates):
+    candidate_id = str(
+        match.get("candidate_id", "")
+    ).strip()
+
+    for candidate in candidates:
+        current_id = str(
+            candidate.get("candidate_id", "")
+        ).strip()
+
+        if current_id == candidate_id:
+            return {
+                **candidate,
+                **match,
+            }
+
+    return match
+
+
+
+# def write_final_recommendation_to_chosen(candidate):
+#     sheet = find_sheet_by_name("chosen")
+#     print("SHEET:")
+#     # print(json.dumps(sheet, indent=2))
+#     sheet_id = sheet["id"]
+
+#     response = read_sheet(sheet_id)
+#     # print(json.dumps(response, indent=2))
+#     matrix = extract_matrix(response)
+
+#     next_row = len(matrix) + 1
+
+#     skills = candidate.get("matched_skills")
+
+#     if not skills:
+#         skills = candidate.get("skills", "")
+
+#     if isinstance(skills, list):
+#         skills = ", ".join(skills)
+
+#     updates = [
+#         {
+#             "cell": f"A{next_row}",
+#             "value": candidate.get("candidate_id", "")
+#         },
+#         {
+#             "cell": f"B{next_row}",
+#             "value": candidate.get("name", "")
+#         },
+#         {
+#             "cell": f"C{next_row}",
+#             "value": candidate.get("level", "")
+#         },
+#         {
+#             "cell": f"D{next_row}",
+#             "value": skills
+#         },
+#         {
+#             "cell": f"E{next_row}",
+#             "value": candidate.get("status", "")
+#         },
+#         {
+#             "cell": f"F{next_row}",
+#             "value": candidate.get("years", "")
+#         },
+#         {
+#             "cell": f"G{next_row}",
+#             "value": candidate.get("role", "")
+#         },
+#         {
+#             "cell": f"H{next_row}",
+#             "value": "final_recommendation"
+#         },
+#         {
+#             "cell": f"I{next_row}",
+#             "value": ""
+#         },
+#     ]
+
+#     response = requests.patch(
+#         f"{BASE_URL}/api/sheets/{sheet_id}/cells",
+#         headers=HEADERS,
+#         json={
+#             "updates": updates
+#         },
+#         timeout=30,
+#     )
+
+#     print(
+#         "WRITE FINAL RECOMMENDATION ->",
+#         response.status_code
+#     )
+
+#     print(json.dumps({"updates": updates}, indent=2))
+
+#     if not response.ok:
+#         print("STATUS:", response.status_code)
+#         print("RESPONSE:")
+#         print(response.text)
+
+#     response.raise_for_status()
+
+#     return response.json()
 
 # =========================================================
 # TEST USING YOUR CURRENT ANALYSIS OUTPUT
