@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Objection — Research hiring, made clear</title>
+    <script>location.replace('platform.html');</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#"><span class="brand-mark">o</span>objection</a>
+        <button class="new-chat"><span>＋</span> New conversation</button>
+        <nav>
+          <p class="nav-label">WORKSPACES</p>
+          <a class="nav-item active" href="#"><span class="dot amber"></span> Autonomous Systems Lab</a>
+          <a class="nav-item" href="#"><span class="dot purple"></span> Teaching assistants</a>
+          <a class="nav-item" href="#"><span class="dot blue"></span> Funding & grants</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <button class="nav-item"><span class="icon">⌘</span> Search</button>
+          <button class="profile"><span class="avatar avatar-small">AS</span><span><strong>Arjun Shah</strong><small>PhD researcher</small></span><span class="more">•••</span></button>
+        </div>
+      </aside>
+
+      <main class="conversation">
+        <header class="conversation-header">
+          <div><p class="eyebrow">AUTONOMOUS SYSTEMS LAB</p><h1>Hiring support for vision benchmark</h1></div>
+          <div class="header-actions"><button class="icon-button" aria-label="Search">⌕</button><button class="icon-button" aria-label="More options">•••</button></div>
+        </header>
+
+        <section class="chat" id="chat" aria-live="polite">
+          <div class="date-divider"><span>Today</span></div>
+          <article class="message professor-message">
+            <span class="avatar professor">KM</span>
+            <div class="message-content"><div class="message-meta"><strong>Prof. K. Meier</strong><time>09:12</time></div><div class="bubble">Arjun, could you prepare the evaluation pipeline for the new vision benchmark by next Friday?</div></div>
+          </article>
+          <article class="message own-message">
+            <div class="message-content"><div class="message-meta"><strong>You</strong><time>09:18</time></div><div class="bubble">I can oversee it, but the implementation work is a better fit for a HiWi. We should bring in someone who has worked with PyTorch and dataset evaluation.</div></div>
+            <span class="avatar avatar-small">AS</span>
+          </article>
+          <article class="message agent-message">
+            <span class="avatar agent">✦</span>
+            <div class="message-content"><div class="message-meta"><strong>Objection agent</strong><span class="agent-pill">ASSISTANT</span><time>09:19</time></div><div class="bubble">I can help with that. Tell me what you need in plain language and I’ll look for suitable candidates in the student talent pool.</div></div>
+          </article>
+          <article class="message own-message">
+            <div class="message-content"><div class="message-meta"><strong>You</strong><time>09:20</time></div><div class="bubble">Find five Master's students with Python, PyTorch, and computer-vision experience. They should be available about 8 hours a week from October.</div></div>
+            <span class="avatar avatar-small">AS</span>
+          </article>
+          <article class="message agent-message" id="results-message">
+            <span class="avatar agent">✦</span>
+            <div class="message-content"><div class="message-meta"><strong>Objection agent</strong><span class="agent-pill">ASSISTANT</span><time>09:20</time></div><div class="bubble agent-bubble"><p>I found 5 promising matches. I weighted computer vision experience, Python/PyTorch fluency, and October availability.</p><div class="candidate-list" id="candidate-list"></div><p class="hint">Choose a candidate to send a hiring request to HR.</p></div></div>
+          </article>
+        </section>
+        <form class="composer" id="composer"><button type="button" class="attach" aria-label="Attach file">＋</button><input id="message-input" autocomplete="off" placeholder="Message the lab or ask Objection…" /><button class="send" type="submit" aria-label="Send message">↑</button></form>
+      </main>
+
+      <aside class="context-panel">
+        <div class="context-header"><h2>Request details</h2><button class="icon-button">•••</button></div>
+        <section class="request-card"><span class="status-dot"></span><span class="status-text" id="request-status">No request sent</span><p id="request-description">Select a candidate to create a hiring request.</p></section>
+        <section class="panel-section"><h3>ROLE BRIEF</h3><dl><div><dt>Role</dt><dd>Student assistant · HiWi</dd></div><div><dt>Workload</dt><dd>8 hours / week</dd></div><div><dt>Start</dt><dd>October 2026</dd></div><div><dt>Budget</dt><dd>Lab operating funds</dd></div></dl></section>
+        <section class="panel-section"><h3>REQUIRED SIGNALS</h3><div class="tags"><span>Python</span><span>PyTorch</span><span>Computer vision</span><span>Dataset evaluation</span></div></section>
+        <section class="people"><h3>PARTICIPANTS <span>3</span></h3><div><span class="avatar professor">KM</span><span>Prof. K. Meier <small>Supervisor</small></span></div><div><span class="avatar avatar-small">AS</span><span>Arjun Shah <small>Requestor</small></span></div><div><span class="avatar agent">✦</span><span>Objection agent <small>Assistant</small></span></div></section>
+      </aside>
+    </div>
+    <div class="modal-backdrop" id="hr-modal" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="close-modal" id="close-modal">×</button><p class="eyebrow">HR HIRING PORTAL</p><h2 id="modal-title">Review hiring request</h2><p class="modal-copy" id="modal-copy"></p><div class="review-card" id="review-card"></div><div class="modal-actions"><button class="secondary" id="reject-request">Reject request</button><button class="primary" id="approve-request">Approve & notify</button></div></section></div>
+    <script src="app.js"></script>
+  </body>
+</html>
