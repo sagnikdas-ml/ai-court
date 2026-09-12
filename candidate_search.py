@@ -1,4 +1,4 @@
-"""Search the public web for potential HiWi candidates using Exa."""
+"""Search the public web for potential candidates using Exa."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ _CANDIDATE_FIELDS = (
 )
 
 
-class HiWiSearchError(RuntimeError):
-    """Raised when a HiWi candidate search cannot be completed."""
+class CandidateSearchError(RuntimeError):
+    """Raised when a candidate search cannot be completed."""
 
 
 def _load_api_key(config_path: str | os.PathLike[str] = ".exa") -> str:
@@ -33,7 +33,7 @@ def _load_api_key(config_path: str | os.PathLike[str] = ".exa") -> str:
         return api_key
     path = Path(config_path)
     if not path.is_file():
-        raise HiWiSearchError(
+        raise CandidateSearchError(
             f"Exa API key not found. Set EXA_API_KEY or create {path} "
             "with EXA_API_KEY=<your-key>."
         )
@@ -44,7 +44,7 @@ def _load_api_key(config_path: str | os.PathLike[str] = ".exa") -> str:
         key, value = line.split("=", 1)
         if key.strip() == "EXA_API_KEY" and value.strip().strip("\"'"):
             return value.strip().strip("\"'")
-    raise HiWiSearchError(f"EXA_API_KEY is missing or empty in {path}.")
+    raise CandidateSearchError(f"EXA_API_KEY is missing or empty in {path}.")
 
 
 def _search_payload(position_name: str, result_count: int) -> dict[str, Any]:
@@ -64,7 +64,7 @@ def _search_payload(position_name: str, result_count: int) -> dict[str, Any]:
     }
     return {
         "query": (
-            f"Potential candidates for a HiWi student research assistant position in {position_name}. "
+            f"Potential candidates for a job role in {position_name}. "
             "Find public profiles or pages for people whose education, research, projects, or skills "
             "match this role. Include LinkedIn, university, laboratory, ORCID, and personal research pages."
         ),
@@ -98,17 +98,17 @@ def _request_exa(api_key: str, payload: Mapping[str, Any], timeout: int) -> dict
             body = response.read().decode("utf-8")
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        raise HiWiSearchError(f"Exa API returned HTTP {exc.code}: {detail}") from exc
+        raise CandidateSearchError(f"Exa API returned HTTP {exc.code}: {detail}") from exc
     except URLError as exc:
-        raise HiWiSearchError(f"Could not reach Exa API: {exc.reason}") from exc
+        raise CandidateSearchError(f"Could not reach Exa API: {exc.reason}") from exc
     try:
         decoded = json.loads(body)
     except json.JSONDecodeError as exc:
-        raise HiWiSearchError("Exa API returned invalid JSON.") from exc
+        raise CandidateSearchError("Exa API returned invalid JSON.") from exc
     if not isinstance(decoded, dict):
-        raise HiWiSearchError("Exa API returned an unexpected response shape.")
+        raise CandidateSearchError("Exa API returned an unexpected response shape.")
     if decoded.get("error"):
-        raise HiWiSearchError(f"Exa API error: {decoded['error']}")
+        raise CandidateSearchError(f"Exa API error: {decoded['error']}")
     return decoded
 
 
@@ -160,7 +160,7 @@ def _candidate_from_result(result: Mapping[str, Any]) -> dict[str, Any] | None:
 def _extract_candidates(response: Mapping[str, Any], limit: int) -> list[dict[str, Any]]:
     results = response.get("results", [])
     if not isinstance(results, list):
-        raise HiWiSearchError("Exa response did not contain a results list.")
+        raise CandidateSearchError("Exa response did not contain a results list.")
     candidates: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
     seen_names: set[str] = set()
@@ -182,14 +182,14 @@ def _extract_candidates(response: Mapping[str, Any], limit: int) -> list[dict[st
     return candidates
 
 
-def find_hiwi_candidates(
+def find_candidates(
     position_name: str,
     *,
     limit: int = DEFAULT_CANDIDATE_COUNT,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
     config_path: str | os.PathLike[str] = ".exa",
 ) -> dict[str, Any]:
-    """Find public-web leads for a HiWi role and return JSON-compatible data."""
+    """Find public-web leads for a job role and return JSON-compatible data."""
     position_name = position_name.strip()
     if not position_name:
         raise ValueError("position_name must not be empty.")
@@ -206,13 +206,13 @@ def find_hiwi_candidates(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Find public-web candidates for a HiWi position.")
-    parser.add_argument("position_name", help="Role name, for example 'Computer Vision HiWi'")
+    parser = argparse.ArgumentParser(description="Find public-web candidates for a job role.")
+    parser.add_argument("position_name", help="Role name, for example 'Computer Vision Engineer'")
     parser.add_argument("--limit", type=int, default=DEFAULT_CANDIDATE_COUNT)
     args = parser.parse_args(argv)
     try:
-        print(json.dumps(find_hiwi_candidates(args.position_name, limit=args.limit), indent=2, ensure_ascii=False))
-    except (HiWiSearchError, ValueError) as exc:
+        print(json.dumps(find_candidates(args.position_name, limit=args.limit), indent=2, ensure_ascii=False))
+    except (CandidateSearchError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     return 0

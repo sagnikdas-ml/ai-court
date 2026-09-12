@@ -1,0 +1,41 @@
+job_id,title,skills,level,status,department
+JOB001,Assistant Professor of Robot Learning,"robot learning; reinforcement learning; imitation learning; manipulation",Faculty,Open - illustrative,Computer Science and Robotics
+JOB002,Associate Professor of Autonomous Systems,"autonomous vehicles; motion planning; control; machine learning",Faculty,Open - illustrative,Robotics and Mechanical Engineering
+JOB003,Professor of Computer Vision for Robotics,"computer vision; 3D perception; deep learning; sensor fusion",Faculty,Open - illustrative,Electrical Engineering and Computer Science
+JOB004,Assistant Professor of NLP and Embodied AI,"natural language processing; LLMs; embodied AI; human-robot interaction",Faculty,Open - illustrative,Computer Science
+JOB005,Professor of Multi-Robot Systems,"multi-agent systems; distributed robotics; planning; optimization",Faculty,Open - illustrative,Robotics Institute
+JOB006,Assistant Professor of Soft Robotics,"soft robotics; compliant mechanisms; control; tactile sensing",Faculty,Open - illustrative,Mechanical Engineering
+JOB007,Associate Professor of SLAM and Spatial AI,"SLAM; visual-inertial odometry; 3D reconstruction; localization",Faculty,Open - illustrative,Robotics and Autonomous Systems
+JOB008,Professor of Human-Robot Interaction,"human-robot interaction; collaborative robotics; planning; user studies",Faculty,Open - illustrative,Computer Science and Design
+JOB009,Assistant Professor of Aerial Robotics,"UAVs; state estimation; trajectory planning; onboard perception",Faculty,Open - illustrative,Aerospace Engineering
+JOB010,Professor of AI Safety for Autonomous Machines,"formal methods; safe reinforcement learning; verification; control",Faculty,Open - illustrative,Computer Science and Systems Engineering
+JOB011,Postdoctoral Researcher - Robot Manipulation,"robot manipulation; grasping; force control; imitation learning",Postdoctoral,Open - illustrative,Robot Learning Lab
+JOB012,Postdoctoral Researcher - Visual Perception,"computer vision; object detection; 3D scene understanding; deep learning",Postdoctoral,Open - illustrative,Computer Vision Lab
+JOB013,Postdoctoral Researcher - Autonomous Driving,"autonomous vehicles; sensor fusion; prediction; planning; C++",Postdoctoral,Open - illustrative,Autonomous Systems Lab
+JOB014,Postdoctoral Researcher - Legged Locomotion,"legged robots; whole-body control; model predictive control; reinforcement learning",Postdoctoral,Open - illustrative,Robotic Systems Lab
+JOB015,Postdoctoral Researcher - Medical Robotics,"surgical robotics; motion planning; computer vision; haptics",Postdoctoral,Open - illustrative,Biomedical Robotics Center
+JOB016,Postdoctoral Researcher - Multi-Agent Learning,"multi-agent reinforcement learning; game theory; distributed optimization",Postdoctoral,Open - illustrative,AI and Decision Systems Lab
+JOB017,Research Scientist - Foundation Models for Robotics,"transformers; vision-language-action models; large-scale training; robotics",Research staff,Open - illustrative,Institute for Embodied Intelligence
+JOB018,Research Scientist - Perception and Sensor Fusion,"LiDAR; radar; camera systems; probabilistic estimation; deep learning",Research staff,Open - illustrative,Autonomous Systems Lab
+JOB019,Research Scientist - Robot Navigation,"navigation; path planning; semantic mapping; ROS 2; SLAM",Research staff,Open - illustrative,Mobile Robotics Center
+JOB020,Research Scientist - Learning-Based Control,"control theory; reinforcement learning; model predictive control; simulation",Research staff,Open - illustrative,Control and Learning Lab
+JOB021,Research Engineer - Robotics Infrastructure,"Python; C++; ROS 2; Docker; simulation; hardware integration",Research staff,Open - illustrative,Robotics Engineering
+JOB022,Research Engineer - Human-Centered AI,"human-robot interaction; responsible AI; user research; prototyping",Research staff,Open - illustrative,Human-Centered AI Institute
+JOB023,PhD Student - Robot Learning,"deep reinforcement learning; imitation learning; manipulation; PyTorch",PhD,Open - illustrative,Computer Science and Robotics
+JOB024,PhD Student - Computer Vision and 3D Geometry,"computer vision; 3D reconstruction; geometric learning; Python",PhD,Open - illustrative,Computer Vision Lab
+JOB025,PhD Student - Autonomous Navigation,"SLAM; localization; mapping; motion planning; ROS 2",PhD,Open - illustrative,Robotics Institute
+JOB026,PhD Student - Safe Autonomy,"formal verification; control; safe learning; autonomous systems",PhD,Open - illustrative,Systems and Control
+JOB027,PhD Student - Soft and Wearable Robotics,"soft actuators; wearable robotics; biomechanics; embedded systems",PhD,Open - illustrative,Mechanical Engineering
+JOB028,PhD Student - NLP for Robots,"NLP; language grounding; multimodal learning; task planning",PhD,Open - illustrative,Language and Robotics Lab
+JOB029,PhD Student - Multi-Robot Coordination,"multi-robot planning; distributed optimization; communication; swarm robotics",PhD,Open - illustrative,Distributed Robotics Lab
+JOB030,PhD Student - Aerial and Field Robotics,"UAVs; visual odometry; navigation; state estimation; field robotics",PhD,Open - illustrative,Aerial Robotics Lab
+JOB031,Lecturer in Machine Learning,"machine learning; deep learning; Python; curriculum development",Teaching faculty,Open - illustrative,Computer Science
+JOB032,Lecturer in Robotics Software,"ROS 2; C++; Python; software engineering; robot simulation",Teaching faculty,Open - illustrative,Robotics Engineering
+JOB033,Lab Director - Autonomous Robotics,"lab leadership; robotics systems; safety; research operations; mentoring",Research leadership,Open - illustrative,Autonomous Robotics Center
+JOB034,Visiting Research Professor - Embodied AI,"embodied AI; robot learning; foundation models; perception",Visiting faculty,Open - illustrative,Institute for AI and Robotics
+JOB035,Research Fellow - Responsible Robotics,"AI ethics; fairness; interpretability; human-robot interaction",Research staff,Open - illustrative,Responsible AI Center
+JOB036,Research Fellow - Surgical Robot Perception,"medical imaging; computer vision; calibration; surgical robotics",Research staff,Open - illustrative,Medical Robotics Lab
+JOB037,Postdoctoral Researcher - Event-Based Vision,"event cameras; computer vision; optical flow; autonomous drones",Postdoctoral,Open - illustrative,Vision for Robotics Lab
+JOB038,Assistant Professor of Robotics Education,"robotics; AI education; project-based learning; curriculum design",Faculty,Open - illustrative,Engineering Education
+JOB039,Associate Professor of Intelligent Manufacturing,"industrial robotics; computer vision; automation; digital twins",Faculty,Open - illustrative,Industrial Engineering
+JOB040,Research Engineer - Simulated Robotics,"robot simulation; synthetic data; domain randomization; GPU computing",Research staff,Open - illustrative,Simulation and Learning Lab
