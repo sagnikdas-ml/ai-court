@@ -1,3 +1,6 @@
 __pycache__/
 .venv/
 objection.db
+node_modules/
+.dev.vars
+.wrangler/

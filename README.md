@@ -1,38 +1,34 @@
-# Objection — research hiring workflow
+# Talent Desk
 
-## Run locally
+Talent Desk is a Cloudflare Workers HR dashboard for reviewing candidates selected in Ambiguous's `chosen` sheet and managing their hiring state.
 
-Create a virtual environment, install the dependency, then start the Python service:
+## Local development
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python app.py
+```bash
+npm install
+npx wrangler secret put AMBIGUOUS_API_KEY
+npm run dev
 ```
 
-Open http://127.0.0.1:5000 in a modern browser. The service creates `objection.db` on first run and adds safe sample data.
+Open the local URL printed by Wrangler. The Worker keeps the Ambiguous credential server-side and exposes same-origin API routes for the UI:
 
-The Python service exposes a REST API and persists projects, task dependencies, conversations, candidate data, hiring requests, and outreach logs in SQLite.
+- `GET /api/candidates`
+- `GET /api/chosen`
+- `PATCH /api/chosen/:candidate_id/state`
+- `GET /api/health`
 
-## Included workflow
+Available candidates are read from `Candidate Pool` and exclude IDs already present in `chosen`. HR actions update only the `state` column in `chosen`.
 
-- Create research projects and pipeline tasks
-- Make tasks depend on previous work and track completion
-- Discuss a task with a professor, PhD researcher, and assistant
-- Select a candidate and pass the request to the HR board
-- Record HR outreach by email or WhatsApp without sending an external message
+## Cloudflare deployment
 
-The candidate search and communications are deliberately simulated. A production deployment would connect these points to the institution's authorised student directory, HR system, and email/WhatsApp provider. The API deliberately logs outreach rather than sending a message externally.
+Authenticate Wrangler and deploy:
 
-## API overview
+```bash
+npx wrangler login
+npx wrangler secret put AMBIGUOUS_API_KEY
+npm run deploy
+```
 
-- `GET, POST /api/projects`
-- `GET, POST /api/projects/<project_id>/tasks`
-- `PATCH, DELETE /api/tasks/<task_id>`
-- `GET, POST /api/tasks/<task_id>/messages`
-- `POST /api/tasks/<task_id>/candidates/search`
-- `POST /api/tasks/<task_id>/hiring-requests`
-- `GET /api/hiring-requests`
-- `PATCH /api/hiring-requests/<request_id>`
-- `POST /api/hiring-requests/<request_id>/outreach`
+The Worker reads sheets by title, so the Ambiguous sheet names must remain `Candidate Pool` and `chosen`. Both sheets use `candidate_id`, `name`, `level`, `skills`, `status`, `years`, and `role`; `chosen` also requires `state`.
+
+The API key is never placed in browser code or committed files. If the key has been shared outside the intended workspace, rotate it before production deployment.
