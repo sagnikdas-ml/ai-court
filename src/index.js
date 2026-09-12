@@ -1,5 +1,4 @@
 const API_DEFAULT = "https://app.ambiguous.ai/api";
-const SHEET_LIST_TTL = 60;
 const VALID_STATES = new Set(["offer", "hired", "rejected", "fired"]);
 
 const respond = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -15,16 +14,18 @@ function parseContent(envelope) {
     try { data = JSON.parse(data); } catch { throw new Error("Ambiguous returned invalid sheet content"); }
   }
   const sheet = data?.sheets?.[0];
-  if (!sheet || !Array.isArray(sheet.rows)) throw new Error("Ambiguous returned an unexpected sheet shape");
-  const headerIndex = sheet.rows.findIndex((row) => Object.values(row || {}).some((value) => clean(value)));
-  if (headerIndex < 0) return { rows: [], headers: [], tab: sheet.name || "Sheet1", headerIndex: -1 };
-  const headerRow = sheet.rows[headerIndex];
+  const matrix = Array.isArray(data) ? data : Array.isArray(data?.values) ? data.values : Array.isArray(data?.rows) ? data.rows : sheet?.rows;
+  if (!Array.isArray(matrix)) throw new Error("Ambiguous returned an unexpected sheet shape");
+  const rows = matrix.map((row) => Array.isArray(row) ? Object.fromEntries(row.map((value, index) => [columnId(index), value])) : row || {});
+  const headerIndex = rows.findIndex((row) => Object.values(row).some((value) => clean(value)));
+  if (headerIndex < 0) return { rows: [], headers: [], tab: sheet?.name || "Sheet1", headerIndex: -1 };
+  const headerRow = rows[headerIndex];
   const headers = Object.entries(headerRow).filter(([, value]) => clean(value)).map(([column, value]) => ({ column, name: key(value) }));
-  const rows = sheet.rows.slice(headerIndex + 1).map((row, offset) => ({
+  const records = rows.slice(headerIndex + 1).map((row, offset) => ({
     rowIndex: headerIndex + 1 + offset,
     values: Object.fromEntries(headers.map(({ column, name }) => [name, clean(row?.[column])])),
   })).filter(({ values }) => Object.values(values).some(Boolean));
-  return { rows, headers, tab: sheet.name || "Sheet1", headerIndex };
+  return { rows: records, headers, tab: sheet?.name || "Sheet1", headerIndex };
 }
 
 async function ambi(env, path, options = {}) {
@@ -33,34 +34,25 @@ async function ambi(env, path, options = {}) {
     ...options,
     headers: { authorization: `Bearer ${env.AMBIGUOUS_API_KEY}`, ...(options.headers || {}) },
   });
-  if (!response.ok) throw new Error(`Ambiguous API returned ${response.status}`);
-  return response.status === 204 ? null : response.json();
-}
-
-async function sheetId(env, title) {
-  const cacheKey = new Request(`${env.AMBIGUOUS_API_URL || API_DEFAULT}/documents?type=sheet`);
-  let cached = await caches.default.match(cacheKey);
-  if (!cached) {
-    const documents = await ambi(env, "/documents?type=sheet");
-    cached = new Response(JSON.stringify(documents), { headers: { "content-type": "application/json" } });
-    await caches.default.put(cacheKey, cached.clone(), { expirationTtl: SHEET_LIST_TTL });
+  if (!response.ok) {
+    const detail = await response.text();
+    let message = detail;
+    try { message = JSON.parse(detail).error || detail; } catch {}
+    throw new Error(`Ambiguous API returned ${response.status}: ${message || response.statusText}`);
   }
-  const documents = await cached.json();
-  const found = (documents.data || []).find((document) => clean(document.title).toLowerCase() === clean(title).toLowerCase());
-  if (!found) throw new Error(`Ambiguous sheet not found: ${title}`);
-  return found.id;
+  return response.status === 204 ? null : response.json();
 }
 
 async function apiSheetId(env, title) {
   const sheets = await ambi(env, "/sheets");
-  const found = (sheets.data || []).find((sheet) => clean(sheet.title).toLowerCase() === clean(title).toLowerCase());
+  const found = (sheets.data || []).find((sheet) => clean(sheet.title || sheet.name).toLowerCase() === clean(title).toLowerCase());
   if (!found) throw new Error(`Ambiguous sheet not found: ${title}`);
   return found.id;
 }
 
 async function readSheet(env, title) {
-  const id = await sheetId(env, title);
-  const envelope = await ambi(env, `/documents/${id}`);
+  const id = await apiSheetId(env, title);
+  const envelope = await ambi(env, `/sheets/${id}/range?spec=${encodeURIComponent("Sheet1!A1:Z100")}`);
   return { id, ...parseContent(envelope) };
 }
 
@@ -84,7 +76,6 @@ function candidateRecord(values) {
 
 async function patchState(env, candidateId, state, offerAmount = "") {
   const sheet = await loadChosen(env);
-  const apiSheetIdValue = await apiSheetId(env, env.CHOSEN_SHEET_TITLE || "chosen");
   const row = sheet.rows.find(({ values }) => values.candidate_id === candidateId);
   if (!row) throw new Error("Chosen candidate not found");
   const stateHeader = sheet.headers.find(({ name }) => name === "state");
@@ -98,7 +89,7 @@ async function patchState(env, candidateId, state, offerAmount = "") {
     }
     updates.push({ cell: `${offerHeader.column}${row.rowIndex + 1}`, value: offerAmount });
   }
-  await ambi(env, `/sheets/${apiSheetIdValue}/cells`, {
+  await ambi(env, `/sheets/${sheet.id}/cells`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ updates }),
@@ -136,6 +127,19 @@ async function route(request, env) {
     const current = sheet.rows.find(({ values }) => values.candidate_id === candidateId)?.values.state || "";
     if (state === "fired" && current.toLowerCase() !== "hired") return respond({ error: "Only hired candidates can be fired" }, 409);
     return respond(await patchState(env, candidateId, state, state === "offer" ? offerAmount.replace(",", ".") : ""));
+  }
+  if (match && request.method === "POST") {
+    const form = await request.formData();
+    const state = clean(form.get("state")).toLowerCase();
+    const offerAmount = clean(form.get("offer_amount"));
+    if (!VALID_STATES.has(state)) return Response.redirect(new URL("/?error=Invalid%20candidate%20state", request.url), 303);
+    if (state === "offer" && (!offerAmount || !/^\d+(?:[.,]\d{1,2})?$/.test(offerAmount) || Number(offerAmount.replace(",", ".")) < 0)) return Response.redirect(new URL("/?error=Enter%20a%20valid%20non-negative%20EUR%20offer%20amount", request.url), 303);
+    try {
+      await patchState(env, decodeURIComponent(match[1]), state, offerAmount.replace(",", "."));
+      return Response.redirect(new URL("/?updated=1", request.url), 303);
+    } catch (error) {
+      return Response.redirect(new URL(`/?error=${encodeURIComponent(error instanceof Error ? error.message : "Update failed")}`, request.url), 303);
+    }
   }
   return null;
 }

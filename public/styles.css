@@ -1,1 +1,5 @@
 .action{padding:11px 16px;min-height:42px;font-size:12px;border-radius:7px}
+.nav{display:flex;text-decoration:none;align-items:center;justify-content:space-between}
+.actions form{display:flex;gap:8px;align-items:center}
+.offer-input{width:110px;padding:10px;border:1px solid #d7dce5;border-radius:7px}
+.primary{display:inline-block;text-decoration:none}
