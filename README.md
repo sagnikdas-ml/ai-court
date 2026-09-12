@@ -1,179 +1,734 @@
 # Apex AI
 
-Apex AI is a Cloudflare Workers HR dashboard for reviewing candidates selected in Ambiguous's `chosen` sheet and managing their hiring state.
+**Apex AI is an AI-powered workforce delegation and hiring assistant built on Ambiguous.**
 
-Copyright: MIT License, Sagnik Das, Prasanna Bhat, Pawan Saxena
+It observes workplace conversations, detects work that can be delegated, identifies suitable candidates from an existing talent pool, checks whether an appropriate job opening already exists, and surfaces the recommendation to HR for review.
 
-## Project description
+The project combines conversational AI, live workplace events, candidate matching, job-gap detection, Ambiguous Sheets, and an HR dashboard into one workflow.
 
-Apex AI is a lightweight HR decision desk that connects a browser-based candidate dashboard to live Ambiguous Sheets data. It separates chosen candidates from the wider candidate pool, displays candidate profiles and skills, and lets authorized HR users record hiring decisions directly in the `chosen` sheet. Supported actions include sending an offer with a EUR amount, hiring a candidate, rejecting a candidate, and firing a previously hired candidate.
+---
 
-The application is implemented as a server-side Cloudflare Worker with static frontend assets. The Worker keeps the Ambiguous API key out of browser code, reads sheets by title, resolves the correct Ambiguous Sheets resource for updates, and exposes same-origin JSON endpoints for the dashboard. The frontend provides a responsive interface with candidate search, status summaries, refresh controls, validation, and clear error states.
+## The Problem
 
-The repository also includes a separate Slack delegation assistant that analyzes fictional Slack conversations, identifies delegatable work, matches suitable employees, and routes human-reviewed suggestions to HR. Mock replay scenarios and automated tests support local development without requiring live credentials.
+Teams often discover staffing needs informally during everyday conversations.
 
-## Local development
+For example:
 
-```bash
-npm install
-cp .dev.vars.example .dev.vars
-# Edit .dev.vars and set AMBIGUOUS_API_KEY to your Ambiguous API key.
-npm run dev
-```
+> "We still haven't tested the model against those 1,500 evaluation samples."
 
-`wrangler secret put` stores a secret in Cloudflare for deployed/remote Workers; it does not make that secret available to local `wrangler dev`. Keep `.dev.vars` local and never commit it.
+> "Someone needs to run every configuration and record the results."
 
-Open the local URL printed by Wrangler. The Worker keeps the Ambiguous credential server-side and exposes same-origin API routes for the UI:
+> "That will probably take two days. The procedure is already documented."
 
-- `GET /api/candidates`
-- `GET /api/chosen`
-- `PATCH /api/chosen/:candidate_id/state`
-- `GET /api/health`
+Normally, this information stays buried in chat.
 
-Available candidates are read from `Candidate Pool` and exclude IDs already present in `chosen`. HR actions update only the `state` column in `chosen`.
+A manager must manually:
 
-## Cloudflare deployment
+1. recognize that the work can be delegated,
+2. determine what skills are required,
+3. search previous applicants or the talent pool,
+4. check whether an appropriate job opening already exists,
+5. contact HR,
+6. review candidates,
+7. track the final staffing decision.
 
-Authenticate Wrangler and deploy:
+Apex AI turns this into an AI-assisted workflow.
 
-```bash
-npx wrangler login
-npx wrangler secret put AMBIGUOUS_API_KEY
-npm run deploy
-```
+---
 
-The Worker reads sheets by title, so the Ambiguous sheet names must remain `Candidate Pool` and `chosen`. Both sheets use `candidate_id`, `name`, `level`, `skills`, `status`, `years`, and `role`; `chosen` also requires `state`.
-
-The API key is never placed in browser code or committed files. If the key has been shared outside the intended workspace, rotate it before production deployment.
-# Slack Delegation Assistant
-
-A Python Slack bot that detects delegatable work, extracts task requirements with OpenAI, and matches fictional employees in SQLite. Run a complete local demonstration without credentials, or connect it to two Slack test channels.
+# How Apex AI Works
 
 ```text
-Alice + Bob -> Slack Socket Mode -> latest 10 messages -> OpenAI structured analysis
-            -> deterministic employee matching -> Slack suggestion + three buttons
+Employee conversation
+        ↓
+Ambiguous Chat
+        ↓
+Apex AI analyzes recent conversation
+        ↓
+Delegation opportunity detected?
+        ↓
+Extract task requirements
+        ↓
+Search Candidate Pool
+        ↓
+AI candidate matching
+        ↓
+Check existing Job Portal
+        ↓
+┌─────────────────────┬─────────────────────┐
+│ Matching job exists │ No matching job     │
+│                     │                     │
+│ Recommend opening   │ Suggest new opening │
+└─────────────────────┴─────────────────────┘
+        ↓
+Post recommendation back to chat
+        ↓
+Store top candidate recommendation
+        ↓
+Ambiguous `chosen` Sheet
+        ↓
+HR Dashboard
+        ↓
+Human review / hiring workflow
 ```
 
-## Quick start (Windows PowerShell)
+The system is designed as **decision support for HR and managers**. Candidate recommendations are based on job-relevant professional information such as skills, experience, role, and seniority. Final employment decisions remain with human reviewers.
 
-Requires Python 3.11 or newer. Run from this repository:
+---
+
+# Core Features
+
+## 1. Conversation-Based Opportunity Detection
+
+Apex AI analyzes workplace conversations and looks for concrete work that could reasonably be delegated.
+
+It extracts information such as:
+
+- task description
+- reason for delegation
+- required skills
+- estimated effort
+- expected seniority
+- suggested worker profile
+- delegation confidence
+
+Example:
+
+```json
+{
+  "opportunity_detected": true,
+  "task": "Run the documented model evaluation across all configurations on the 1,500-sample benchmark and record the results.",
+  "delegation_score": 0.93,
+  "complexity": "junior",
+  "required_skills": [
+    "following documented procedures",
+    "model evaluation or QA testing",
+    "result recording and organization",
+    "attention to detail"
+  ],
+  "estimated_effort": "2 days"
+}
+```
+
+---
+
+## 2. Candidate Pool Search
+
+Candidate information is stored in the Ambiguous Sheet:
+
+```text
+Candidate Pool
+```
+
+Candidate records include fields such as:
+
+```text
+candidate_id
+name
+level
+skills
+status
+years
+role
+```
+
+The system can work with previous applicants, talent-pool candidates, and other professional candidate profiles stored in the workspace.
+
+---
+
+## 3. Two-Stage Candidate Matching
+
+To keep the AI workflow efficient, Apex AI does not send the entire candidate database to the model.
+
+Instead:
+
+```text
+Candidate Pool
+     ↓
+Local pre-filter
+     ↓
+Top 5 potentially relevant candidates
+     ↓
+Ambiguous Assistant
+     ↓
+Semantic candidate evaluation
+     ↓
+Top recommendations
+```
+
+The local pre-filter considers job-related information such as:
+
+- required level
+- ML/model experience
+- QA/testing
+- data analysis
+- research
+- documentation
+- Python
+- hardware/integration
+- data collection
+
+The Ambiguous Assistant then performs semantic evaluation of the shortlisted candidates.
+
+Each recommendation contains:
+
+```json
+{
+  "candidate_id": "...",
+  "name": "...",
+  "match_score": 0.86,
+  "matched_skills": [
+    "QA",
+    "ML",
+    "data analysis"
+  ],
+  "why_candidate_matches": "..."
+}
+```
+
+Candidate recommendations are produced for human review rather than automatic hiring decisions.
+
+---
+
+## 4. Job Opening Detection
+
+Apex AI also reads the Ambiguous Sheet:
+
+```text
+job portal
+```
+
+It checks whether an existing open position genuinely covers the newly detected work.
+
+The analysis considers:
+
+- task type
+- required skills
+- seniority
+- scope of responsibility
+
+For example, the system should not treat:
+
+```text
+Senior ML Engineer
+```
+
+as an appropriate match for a:
+
+```text
+Junior ML Evaluation Assistant
+```
+
+simply because both involve machine learning.
+
+A job must match the actual task and expected seniority.
+
+---
+
+## 5. New Job Recommendation
+
+If no appropriate job opening exists, Apex AI generates a suggested opening.
+
+Example:
+
+```text
+Junior ML Evaluation Assistant
+
+Level:
+junior
+
+Skills:
+- model evaluation
+- QA testing
+- following documented procedures
+- result recording
+- attention to detail
+
+Estimated effort:
+2 days
+```
+
+For the current MVP, this is a **job-opening recommendation**, not autonomous creation of a real employment position.
+
+---
+
+## 6. Recommendation Posted Back to Chat
+
+After the analysis completes, qbot posts the result into the same Ambiguous conversation.
+
+Example:
+
+```text
+🤖 I found a potential delegation opportunity.
+
+Task:
+Run the documented model evaluation across all configurations
+on the 1,500-sample benchmark and record the results.
+
+Estimated effort: 2 days
+Suggested level: junior
+
+Why I flagged this:
+This is a repetitive testing task with a documented procedure
+and a clear deliverable.
+
+Potential candidate matches:
+
+• Candidate A (86% match)
+  Relevant skills: QA, ML, data analysis
+  Why this candidate matches: ...
+
+• Candidate B (74% match)
+  Relevant skills: research, documentation
+  Why this candidate matches: ...
+
+⚠️ I could not find an existing job opening that appropriately
+matches this work.
+
+Suggested new opening:
+• Junior ML Evaluation Assistant
+• Level: junior
+• Skills: model evaluation, QA testing, result recording
+
+This is a staffing suggestion for human review,
+not an automated hiring decision.
+```
+
+---
+
+# Live Event Architecture
+
+Apex AI can operate as a live agent rather than requiring the analysis script to be manually executed.
+
+Ambiguous exposes workspace events including:
+
+```text
+message.received
+```
+
+The live architecture is:
+
+```text
+New Ambiguous message
+        ↓
+message.received event
+        ↓
+Ambiguous Webhook
+        ↓
+Public HTTPS endpoint
+        ↓
+Apex AI listener
+        ↓
+Conversation analysis
+        ↓
+Candidate + job analysis
+        ↓
+Recommendation posted to Ambiguous
+```
+
+During local development, a Cloudflare Tunnel can expose the local webhook listener:
+
+```powershell
+.\cloudflared.exe tunnel --url http://localhost:8000
+```
+
+This provides a temporary HTTPS URL that can be registered with Ambiguous.
+
+---
+
+# Ambiguous Sheets
+
+Apex AI currently uses three main Ambiguous Sheets.
+
+## Candidate Pool
+
+Stores available candidate profiles.
+
+| Field | Description |
+|---|---|
+| `candidate_id` | Candidate identifier |
+| `name` | Candidate name |
+| `level` | Professional/seniority level |
+| `skills` | Professional skills |
+| `status` | Candidate source/status |
+| `years` | Years of experience |
+| `role` | Current or previous role |
+
+---
+
+## job portal
+
+Stores existing job openings.
+
+Typical fields:
+
+| Field | Description |
+|---|---|
+| `job_id` | Job identifier |
+| `title` | Job title |
+| `skills` | Required skills |
+| `level` | Required seniority |
+| `status` | Open/closed status |
+| `department` | Department |
+
+---
+
+## chosen
+
+Stores candidates surfaced for the HR workflow.
+
+| Field | Description |
+|---|---|
+| `candidate_id` | Candidate identifier |
+| `name` | Candidate name |
+| `level` | Candidate level |
+| `skills` | Candidate skills |
+| `status` | Candidate status |
+| `years` | Years of experience |
+| `role` | Candidate role |
+| `state` | HR workflow state |
+| `offer_amount` | Offer amount when applicable |
+
+The highest-ranked recommendation can be written into this sheet as:
+
+```text
+state = final_recommendation
+```
+
+This makes the recommendation available to the HR dashboard for review.
+
+---
+
+# HR Dashboard
+
+Apex AI includes a Cloudflare Workers-based HR dashboard.
+
+The dashboard reads candidate information from Ambiguous Sheets and provides a human-facing interface for reviewing the candidates surfaced by the agent.
+
+The Worker architecture keeps the Ambiguous API credential on the server rather than exposing it in browser JavaScript.
+
+```text
+Browser
+   ↓
+Cloudflare Worker
+   ↓
+Ambiguous API
+   ↓
+Ambiguous Sheets
+```
+
+The dashboard supports HR workflow actions such as:
+
+- reviewing candidate information
+- reviewing skills and experience
+- viewing recommendation state
+- recording an offer
+- updating hiring state
+- rejecting a candidate
+- managing previously hired candidates
+
+---
+
+# Architecture
+
+```text
+                    ┌───────────────────────────┐
+                    │      Ambiguous Chat       │
+                    │      #research-team       │
+                    └─────────────┬─────────────┘
+                                  │
+                         message.received
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │      Apex AI Agent        │
+                    │                           │
+                    │ Opportunity Detection     │
+                    │ Candidate Matching        │
+                    │ Job Matching              │
+                    └───────┬───────────┬───────┘
+                            │           │
+                ┌───────────┘           └───────────┐
+                ▼                                   ▼
+      ┌───────────────────┐               ┌───────────────────┐
+      │  Candidate Pool   │               │    job portal     │
+      │ Ambiguous Sheet   │               │ Ambiguous Sheet   │
+      └───────────────────┘               └───────────────────┘
+                │
+                ▼
+      ┌───────────────────┐
+      │      chosen       │
+      │ Ambiguous Sheet   │
+      └─────────┬─────────┘
+                │
+                ▼
+      ┌───────────────────┐
+      │   HR Dashboard    │
+      │ Cloudflare Worker │
+      └───────────────────┘
+```
+
+---
+
+# Technology Stack
+
+### AI and Agent Layer
+
+- Ambiguous Assistant
+- Ambiguous Chat API
+- Ambiguous workspace events
+- Python
+- Requests
+
+### Data Layer
+
+- Ambiguous Sheets
+- Candidate Pool
+- Job Portal
+- Chosen Candidates
+
+### Live Agent
+
+- Flask
+- Ambiguous webhooks
+- `message.received`
+- Cloudflare Tunnel
+
+### HR Dashboard
+
+- Cloudflare Workers
+- JavaScript
+- HTML/CSS
+- Ambiguous API
+
+---
+
+# Local Python Setup
+
+Requires Python 3.11+.
+
+Create a virtual environment:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e '.[dev]'
-Copy-Item .env.example .env
-.\.venv\Scripts\python.exe -m delegation_bot seed
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario junior-task --analyzer mock
-.\.venv\Scripts\python.exe -m pytest
 ```
 
-Using the virtual environment's Python directly avoids PowerShell activation-policy issues. After activating it, the equivalent commands are `python -m delegation_bot ...` and `pytest`.
-
-Mock mode prints the Alice/Bob conversation, a suggestion, and the candidate shortlist. It returns **scripted fixture output, not real text analysis**. Replay always uses an isolated in-memory database and never sends messages to Slack.
-
-Try other scenarios and simulate button clicks:
+Activate it:
 
 ```powershell
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario senior-task
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario casual-chat
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario completed-work
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario no-match
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario multiple-tasks
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario prompt-injection
-.\.venv\Scripts\python.exe -m delegation_bot replay --action ask_hr
-.\.venv\Scripts\python.exe -m delegation_bot replay --action ignore
+.\.venv\Scripts\Activate.ps1
 ```
 
-## Real text analysis with OpenAI
-
-Edit `.env` locally and set `OPENAI_API_KEY` and `OPENAI_MODEL` to a model available to your API project that supports Responses Structured Outputs. The model is deliberately configurable; no paid API call occurs in mock mode.
+Install dependencies:
 
 ```powershell
-.\.venv\Scripts\python.exe -m delegation_bot replay --scenario junior-task --analyzer openai
+pip install requests python-dotenv flask
 ```
 
-The implementation calls `client.responses.parse(..., text_format=Analysis)` with a Pydantic schema. It asks for concrete unfinished deliverables, junior/senior requirements, difficulty, required skills, rationale, and source message IDs. This is task extraction, not sentiment analysis. No embeddings, training, or vector database are needed for this demo.
+Create a local `.env`:
 
-Conversation text is supplied as untrusted data. Prior opportunities are included to reduce paraphrased duplicates. The app checks that evidence IDs exist and only posts actionable, nonempty tasks. Invalid or refused responses produce no suggestion; transient API failures have at most two retries. Structured output constrains format, but the live model's interpretation still needs evaluation.
+```env
+AMBIGUOUS_API_KEY=your_key_here
+```
 
-Reference: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+Never commit `.env` or expose the API key in browser-side code.
 
-## Connect a real Slack workspace
+---
 
-1. Open [Slack app management](https://api.slack.com/apps) and choose **Create New App → From a manifest**. Select your test workspace and paste `slack-app-manifest.json`.
-2. In **Basic Information → App-Level Tokens**, generate a token with `connections:write`. Put its `xapp-...` value in `SLACK_APP_TOKEN`. App-level tokens are created separately; the manifest cannot generate them.
-3. In **OAuth & Permissions**, install the app to your workspace. Put the **Bot User OAuth Token** (`xoxb-...`) in `SLACK_BOT_TOKEN`.
-4. Verify **Socket Mode** and **Interactivity** are enabled. Under **Event Subscriptions**, the bot event is `message.channels`. Required bot scopes are `channels:history` and `chat:write`. Reinstall if scopes change.
-5. Create two public test channels, for example `delegation-demo` and `delegation-hr`. Invite the app to both using `/invite @Delegation Assistant`.
-6. Copy their channel IDs from channel details into `SLACK_CHANNEL_ID` and `HR_CHANNEL_ID`. Use different channels. Do not use channel names or `#` prefixes.
-7. Set the OpenAI variables as above, then run:
+# Running the Candidate/Job Pipeline
+
+For development, the pipeline can be executed manually:
 
 ```powershell
-.\.venv\Scripts\python.exe -m delegation_bot run
+python .\candidate_job_match.py
 ```
 
-Keep the process running. Socket Mode opens an outbound connection; no public webhook URL or ngrok is needed. Two people use their own Slack accounts as Alice and Bob. No user impersonation or automated message seeding is performed.
+The script:
 
-Reference: [Slack Bolt Socket Mode](https://docs.slack.dev/tools/bolt-python/concepts/socket-mode/).
+```text
+loads Candidate Pool
+        ↓
+pre-filters candidates
+        ↓
+semantically evaluates shortlist
+        ↓
+checks job portal
+        ↓
+creates recommendation
+        ↓
+writes top recommendation to chosen
+        ↓
+posts result to Ambiguous Chat
+```
 
-## Alice/Bob live demo
+---
 
-Paste these messages in order into the configured test channel. Send the final two close together, then wait five seconds plus API latency. If you pause earlier, the bot may analyze the partial conversation, which is expected.
+# Running the Live Agent
 
-| Speaker | Message |
-|---|---|
-| Alice | The sales team needs a weekly summary from their CSV exports. |
-| Bob | What should the summary contain? |
-| Alice | Revenue totals by region and a list of missing customer IDs. |
-| Bob | Is this a dashboard or just a file? |
-| Alice | Just a CSV report generated by a Python script. |
-| Bob | Do we have example inputs? |
-| Alice | Yes, sample files and the expected output format are ready. |
-| Bob | That sounds straightforward with pandas. |
-| Alice | I'm busy with the payment migration. Can someone else take this? |
-| Bob | A junior developer could implement it, and I can review it. |
+Start the webhook listener:
 
-Expected: a thread reply identifying the reporting task, usually low difficulty and junior level, with Python/pandas/CSV skills. Live wording and classification can vary.
+```powershell
+python .\live_agent.py
+```
 
-- **View Candidates:** private ephemeral shortlist for the person clicking. The scripted task ranks Maya Chen, Priya Shah, and Leo Martins; Leo lacks pandas and is labeled a partial match.
-- **Ignore:** mark the card ignored and suppress that task in the same conversation.
-- **Ask HR:** send the summary, candidate shortlist, requester, and source reference to the HR test channel. Clicking is the explicit send action; there is no automatic assignment.
+By default the local Flask application listens on:
 
-Smoke-test checklist: confirm one suggestion appears, inspect matched/missing skills, click Ask HR, verify exactly one HR message and the updated card, then click an old action again to confirm it does not resend. Use another thread for an Ignore test. Try casual chat and completed-work fixtures with live replay to evaluate false positives. Live tests require your own credentials and workspace.
+```text
+http://localhost:8000
+```
 
-## Behavior and persistence
+Expose it using Cloudflare Tunnel:
 
-- Only new human text messages in the configured public channel are ingested. Bots, edits, deletions, private channels, DMs, and attachments are excluded.
-- Channel discussion and each thread have separate windows. Threads keep a locally available root plus nine recent replies. Old roots not already observed are not fetched from Slack. Other windows keep ten messages.
-- A five-second quiet period triggers analysis; newer input invalidates an in-flight result. Processing is serialized per conversation.
-- SQLite stores the latest messages, processed event IDs, opportunities, action state, and twelve fictional employees. Seeding is idempotent and does not overwrite employee edits.
-- Matching excludes unavailable employees; senior tasks require seniors. Rank by skill coverage, exact level match, then employee ID. At most three matches are shown, with missing skills. Unknown skills return no matches.
-- Normalized titles suppress exact task repeats, including across restarts. The model also receives earlier tasks to reduce semantic repeats; paraphrase suppression is not guaranteed. Ignored tasks remain suppressed in that database, even after restart.
-- A timeout during HR posting is marked `hr_uncertain`. Automatic retries are disabled for Slack posts. Check the HR channel for the opportunity ID before manually reconciling the database. Interrupted initial suggestion posts are similarly marked `post_uncertain` and are not automatically reposted. Definitive Slack rejection such as `not_in_channel` leaves HR retryable.
-- In-flight analysis is not resumed on restart; a new message schedules it. Run one bot process per database. This is a local MVP, not a distributed worker service.
-- Replay always starts fresh. For a fresh real demo, stop the bot and choose a new `DATABASE_PATH` in `.env`, then seed and restart. Existing databases are not deleted by the app.
+```powershell
+.\cloudflared.exe tunnel --url http://localhost:8000
+```
 
-Messages selected for live analysis leave your machine for OpenAI; requests set `store=False`. This is not a guarantee of zero provider retention. Keep demos fictional. Secrets and databases are gitignored; logs report error types and operational IDs without dumping conversations or keys.
+Cloudflare will provide a temporary URL similar to:
 
-## Configuration
+```text
+https://example.trycloudflare.com
+```
 
-| Variable | Use |
-|---|---|
-| `OPENAI_API_KEY` | Required for live analysis |
-| `OPENAI_MODEL` | Required model ID supporting structured Responses output |
-| `SLACK_BOT_TOKEN` | Installed bot token |
-| `SLACK_APP_TOKEN` | Socket Mode app-level token |
-| `SLACK_CHANNEL_ID` | Public test channel to monitor |
-| `HR_CHANNEL_ID` | Separate public HR test channel |
-| `DATABASE_PATH` | Defaults to `data/delegation.sqlite3` |
-| `DEBOUNCE_SECONDS` | Positive quiet interval; defaults to `5` |
+The webhook endpoint is:
 
-## Troubleshooting and development
+```text
+https://example.trycloudflare.com/ambiguous-webhook
+```
 
-- **No Slack events:** check the channel ID, invite the bot, enable `message.channels`, and keep the process running. Private channels are outside this manifest's scope.
-- **No AI suggestion:** try live replay to isolate Slack setup, confirm the API key/model, and inspect logs. Clear handoff evidence is required; false or completed tasks should produce no response.
-- **HR request rejected:** invite the bot to the HR channel and check scopes. Retry only when the card remains open. For uncertain delivery, check the HR channel first.
-- **Candidates missing:** only available seeded employees with overlapping skills qualify. Run `seed` against the same database.
-- **Repeated demo produces no card:** previous opportunity fingerprints persist. Use a fresh database or a new thread.
+Register the endpoint for:
 
-Modules separate typed analysis (`models.py`, `analysis.py`), storage and matching (`store.py`, `candidates.py`), orchestration (`service.py`), Slack rendering/transport (`rendering.py`, `slack.py`), and fixtures/CLI. Tests use fake transports and model clients; passing them does not certify live model accuracy. `prompt-injection` in mock mode tests the pipeline fixture, while its live replay tests model behavior.
+```text
+message.received
+```
+
+After registration, new Ambiguous messages can trigger the Apex AI pipeline automatically.
+
+---
+
+# Cloudflare Dashboard Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create local development variables:
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+Set:
+
+```text
+AMBIGUOUS_API_KEY
+```
+
+Then:
+
+```bash
+npm run dev
+```
+
+The Worker keeps the Ambiguous credential server-side.
+
+Typical API routes include:
+
+```text
+GET   /api/candidates
+GET   /api/chosen
+PATCH /api/chosen/:candidate_id/state
+GET   /api/health
+```
+
+---
+
+# Cloudflare Deployment
+
+Authenticate Wrangler:
+
+```bash
+npx wrangler login
+```
+
+Store the Ambiguous credential:
+
+```bash
+npx wrangler secret put AMBIGUOUS_API_KEY
+```
+
+Deploy:
+
+```bash
+npm run deploy
+```
+
+Never commit API keys or webhook signing secrets.
+
+---
+
+# Security
+
+Apex AI follows several important security principles:
+
+- Ambiguous API credentials remain server-side.
+- `.env` and `.dev.vars` should never be committed.
+- Webhook signing secrets should be stored as environment variables.
+- Browser code does not directly receive the Ambiguous API key.
+- Candidate recommendations use professional/job-relevant information.
+- Sensitive or protected characteristics should not be used for candidate matching.
+- Employment recommendations remain subject to human review.
+
+If an API key has been accidentally exposed, rotate it before deployment.
+
+---
+
+# Current MVP Scope
+
+The hackathon MVP demonstrates:
+
+- workplace conversation analysis
+- delegation opportunity detection
+- task requirement extraction
+- candidate-pool retrieval
+- semantic candidate matching
+- candidate ranking
+- existing job-opening detection
+- new job-opening suggestions
+- recommendation posting into Ambiguous Chat
+- chosen-candidate persistence in Ambiguous Sheets
+- live `message.received` event integration
+- HR review through a Cloudflare dashboard
+
+Future improvements could include:
+
+- richer candidate retrieval
+- embeddings/vector search for large candidate pools
+- configurable approval workflows
+- HR notifications
+- automatic job-draft creation after approval
+- duplicate opportunity detection
+- recommendation audit history
+- production webhook deployment
+- evaluation datasets for candidate-matching quality
+
+---
+
+# Responsible Use
+
+Apex AI is designed to **assist**, not replace, human staffing and hiring decisions.
+
+The system can identify work requirements, retrieve potentially relevant professional profiles, and organize information for HR review. Candidate recommendations should be evaluated by authorized humans before any employment action is taken.
+
+---
+
+## Authors
+
+- Sagnik Das
+- Prasanna Bhat
+- Pawan Saxena
+
+## License
+
+MIT License
